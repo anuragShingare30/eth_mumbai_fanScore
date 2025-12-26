@@ -1,15 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Staatliches&family=Work+Sans:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1a1a1a;
+  
+  /* ETHMumbai Brand Colors */
+  --ethmumbai-red: #E32625;
+  --ethmumbai-yellow: #FFCD00;
+  --ethmumbai-cyan: #40B4E5;
+  --ethmumbai-black: #1a1a1a;
+  --ethmumbai-white: #ffffff;
+  --ethmumbai-light-bg: #f5e5e5;
+  --ethmumbai-red-dark: #c41f1e;
+  
+  /* Semantic colors */
+  --color-primary: var(--ethmumbai-red);
+  --color-secondary: var(--ethmumbai-cyan);
+  --color-accent: var(--ethmumbai-yellow);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ethmumbai-red: #E32625;
+  --color-ethmumbai-red-dark: #c41f1e;
+  --color-ethmumbai-yellow: #FFCD00;
+  --color-ethmumbai-cyan: #40B4E5;
+  --color-ethmumbai-black: #1a1a1a;
+  --color-ethmumbai-light-bg: #f5e5e5;
+  --font-header: 'Staatliches', sans-serif;
+  --font-body: 'Work Sans', sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +43,151 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Performance optimizations */
+* {
+  box-sizing: border-box;
+}
+
+img, picture, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Mumbai Road Barrier Pattern */
+@utility mumbai-stripes {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--ethmumbai-yellow) 0px,
+    var(--ethmumbai-yellow) 20px,
+    var(--ethmumbai-black) 20px,
+    var(--ethmumbai-black) 40px
+  );
+}
+
+/* Ethereum Diamond Shape */
+@utility eth-diamond {
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+/* ETHMumbai Animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(227, 38, 37, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(227, 38, 37, 0.6);
+  }
+}
+
+@utility animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-slide-up {
+  animation: slide-up 0.5s ease-out;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+@utility animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@utility animate-float-delayed {
+  animation: float 8s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+@keyframes fly-across {
+  0% {
+    transform: translateX(-250px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(calc(100vw + 250px));
+    opacity: 0;
+  }
+}
+
+@utility animate-fly-across {
+  animation: fly-across 20s linear infinite;
+  will-change: transform, opacity;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 2px solid var(--ethmumbai-cyan);
+  outline-offset: 2px;
+}
+
+/* Better tap targets for mobile */
+button, a {
+  min-height: 44px;
+  min-width: 44px;
+  touch-action: manipulation;
+}
+
+/* Text Utilities */
+@utility text-ethmumbai-gradient {
+  background: linear-gradient(135deg, var(--ethmumbai-red) 0%, var(--ethmumbai-cyan) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@utility font-header {
+  font-family: var(--font-header);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+@utility font-body {
+  font-family: var(--font-body);
 }
