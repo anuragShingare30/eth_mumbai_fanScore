@@ -9,6 +9,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
+    // Transaction pooler URL for serverless (Vercel)
     url: process.env["DATABASE_URL"],
+    // Direct URL for migrations
+    directUrl: process.env["DIRECT_URL"],
   },
 });
