@@ -2,6 +2,8 @@
 
 import { RankInfo, getNextRank, getTweetsToNextRank } from "@/app/lib/ranks";
 import Image from "next/image";
+import { useState } from "react";
+import ProfileCard from "./ProfileCard";
 
 interface ScoreCardProps {
   user: {
@@ -28,6 +30,7 @@ export default function ScoreCard({
 }: ScoreCardProps) {
   const nextRank = getNextRank(user.score);
   const tweetsToNext = getTweetsToNextRank(user.score);
+  const [showShareCard, setShowShareCard] = useState(false);
 
   return (
     <div className="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border-3 border-(--ethmumbai-cyan)">
@@ -142,13 +145,7 @@ export default function ScoreCard({
 
             {/* Share button */}
             <button
-              onClick={() => {
-                const text = `I'm an ${rank.name} ${rank.emoji} with a score of ${user.score} on the ETHMumbai Fan Leaderboard! Check your score too!`;
-                window.open(
-                  `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&hashtags=ETHMumbai`,
-                  "_blank"
-                );
-              }}
+              onClick={() => setShowShareCard(true)}
               className="w-full py-3 bg-(--ethmumbai-black) hover:bg-(--ethmumbai-black)/90 text-white font-header text-base rounded-2xl flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -164,6 +161,36 @@ export default function ScoreCard({
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-(--ethmumbai-cyan)">
+            {/* Close button */}
+            <button
+              onClick={() => setShowShareCard(false)}
+              className="absolute top-4 right-4 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Modal Title */}
+            <h3 className="text-xl font-bold text-(--ethmumbai-red) font-header mb-4 text-center">
+              Share Your Score 🎉
+            </h3>
+
+            {/* Profile Card Component */}
+            <ProfileCard
+              user={user}
+              analysis={analysis}
+              rank={rank}
+              leaderboardPosition={leaderboardPosition}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
