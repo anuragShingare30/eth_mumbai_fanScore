@@ -1,61 +1,22 @@
 import { ImageResponse } from "@vercel/og";
 import { NextRequest } from "next/server";
-import prisma from "@/app/lib/prisma";
-import { getRankByScore } from "@/app/lib/ranks";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ handle: string }> }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { handle } = await params;
-    const cleanHandle = handle.replace("@", "").toLowerCase().trim();
+    const { searchParams } = new URL(request.url);
 
-    // Fetch user from database (READ ONLY - doesn't affect existing users)
-    const user = await prisma.user.findUnique({
-      where: { twitterHandle: cleanHandle },
-    });
-
-    if (!user) {
-      return new ImageResponse(
-        (
-          <div
-            style={{
-              height: "100%",
-              width: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#1a1a2e",
-              fontFamily: "sans-serif",
-            }}
-          >
-            <div style={{ display: "flex", fontSize: 48, color: "#ffffff" }}>User not found</div>
-            <div style={{ display: "flex", fontSize: 24, color: "#888888", marginTop: 16 }}>
-              @{cleanHandle}
-            </div>
-          </div>
-        ),
-        {
-          width: 1200,
-          height: 630,
-        }
-      );
-    }
-
-    const rank = getRankByScore(user.ethMumbaiScore);
-
-    // Get leaderboard position
-    const position = await prisma.user.count({
-      where: { ethMumbaiScore: { gt: user.ethMumbaiScore } },
-    });
-    const leaderboardPosition = position + 1;
-
-    // Get display name with fallback
-    const displayName = user.displayName || user.twitterHandle;
+    // Get all data from URL parameters - no database needed!
+    const handle = searchParams.get("handle") || "anonymous";
+    const displayName = searchParams.get("name") || handle;
+    const score = parseInt(searchParams.get("score") || "0", 10);
+    const rankName = searchParams.get("rank") || "ETHMumbai Newbie";
+    const rankEmoji = searchParams.get("emoji") || "👋";
+    const position = parseInt(searchParams.get("position") || "1", 10);
+    const tweets = parseInt(searchParams.get("tweets") || "0", 10);
+    const mentions = parseInt(searchParams.get("mentions") || "0", 10);
+    const hashtags = parseInt(searchParams.get("hashtags") || "0", 10);
 
     return new ImageResponse(
       (
@@ -111,7 +72,7 @@ export async function GET(
               }}
             >
               <div style={{ display: "flex", fontSize: 28, fontWeight: "bold", color: "#1a1a2e" }}>
-                #{leaderboardPosition}
+                #{position}
               </div>
               <div style={{ display: "flex", fontSize: 16, color: "#1a1a2e", opacity: 0.8, marginLeft: 12 }}>
                 RANK
@@ -137,7 +98,7 @@ export async function GET(
                 width: 280,
               }}
             >
-              {/* Profile Image placeholder with emoji */}
+              {/* Profile emoji badge */}
               <div
                 style={{
                   width: 160,
@@ -151,7 +112,7 @@ export async function GET(
                   fontSize: 72,
                 }}
               >
-                {rank.emoji}
+                {rankEmoji}
               </div>
 
               {/* Name and handle */}
@@ -175,7 +136,7 @@ export async function GET(
                   {displayName.length > 18 ? displayName.slice(0, 18) + "..." : displayName}
                 </div>
                 <div style={{ display: "flex", fontSize: 22, color: "#888888", marginTop: 8 }}>
-                  @{user.twitterHandle}
+                  @{handle}
                 </div>
               </div>
             </div>
@@ -200,7 +161,7 @@ export async function GET(
                   borderRadius: 24,
                 }}
               >
-                <div style={{ display: "flex", fontSize: 80 }}>{rank.emoji}</div>
+                <div style={{ display: "flex", fontSize: 80 }}>{rankEmoji}</div>
                 <div style={{ display: "flex", flexDirection: "column", marginLeft: 32 }}>
                   <div
                     style={{
@@ -211,10 +172,10 @@ export async function GET(
                       lineHeight: 1,
                     }}
                   >
-                    {user.ethMumbaiScore}
+                    {score}
                   </div>
                   <div style={{ display: "flex", fontSize: 24, color: "#FFE135", fontWeight: "600", marginTop: 8 }}>
-                    {rank.name}
+                    {rankName}
                   </div>
                 </div>
               </div>
@@ -242,7 +203,7 @@ export async function GET(
                       color: "#00D4AA",
                     }}
                   >
-                    {user.tweetCount}
+                    {tweets}
                   </div>
                   <div style={{ display: "flex", fontSize: 16, color: "#888888", marginTop: 4 }}>
                     TWEETS
@@ -269,7 +230,7 @@ export async function GET(
                       color: "#FF6B35",
                     }}
                   >
-                    {user.mentionCount}
+                    {mentions}
                   </div>
                   <div style={{ display: "flex", fontSize: 16, color: "#888888", marginTop: 4 }}>
                     MENTIONS
@@ -295,7 +256,7 @@ export async function GET(
                       color: "#FFE135",
                     }}
                   >
-                    {user.hashtagCount}
+                    {hashtags}
                   </div>
                   <div style={{ display: "flex", fontSize: 16, color: "#888888", marginTop: 4 }}>
                     HASHTAGS
