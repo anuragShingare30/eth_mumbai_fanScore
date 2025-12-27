@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, Suspense, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import SearchForm from "@/app/components/SearchForm";
@@ -42,6 +42,10 @@ interface UserResult {
   };
   rank: RankInfo;
   leaderboardPosition: number;
+  referralCode: string;
+  referralCount: number;
+  referralBonus: number;
+  isOwnProfile?: boolean;
 }
 
 export default function Home() {
@@ -50,6 +54,38 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [searchedHandle, setSearchedHandle] = useState<string | null>(null);
   const [leaderboardRefresh, setLeaderboardRefresh] = useState(0);
+  const [claimedHandle, setClaimedHandle] = useState<string | null>(null);
+  const [storedReferralCode, setStoredReferralCode] = useState<string | null>(null);
+
+  // On mount: capture ref param and load claimed handle
+  useEffect(() => {
+    // Load claimed handle from localStorage
+    const stored = localStorage.getItem('ethmumbai_claimed_handle');
+    if (stored) {
+      setClaimedHandle(stored);
+    }
+
+    // Capture referral code from URL
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get('ref');
+    if (refCode) {
+      // Only store if not already stored (first-click attribution)
+      const existingRef = localStorage.getItem('ethmumbai_ref');
+      if (!existingRef) {
+        localStorage.setItem('ethmumbai_ref', refCode);
+      }
+      setStoredReferralCode(existingRef || refCode);
+      
+      // Clean URL without refresh
+      window.history.replaceState({}, '', window.location.pathname);
+    } else {
+      // Load existing referral code
+      const existingRef = localStorage.getItem('ethmumbai_ref');
+      if (existingRef) {
+        setStoredReferralCode(existingRef);
+      }
+    }
+  }, []);
 
   const handleSearch = useCallback(async (handle: string) => {
     setIsLoading(true);
@@ -57,19 +93,37 @@ export default function Home() {
     setResult(null);
     setSearchedHandle(handle);
 
+    const cleanHandle = handle.replace('@', '').toLowerCase().trim();
+
     try {
       const response = await fetch("/api/check", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ handle }),
+        body: JSON.stringify({ 
+          handle,
+          referralCode: storedReferralCode, // Pass stored referral code
+        }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setResult(data.data);
+        // Claim handle logic: first search becomes claimed handle
+        if (!claimedHandle) {
+          localStorage.setItem('ethmumbai_claimed_handle', cleanHandle);
+          setClaimedHandle(cleanHandle);
+        }
+
+        // Determine if this is the user's own profile
+        const isOwnProfile = claimedHandle === cleanHandle || !claimedHandle;
+
+        setResult({
+          ...data.data,
+          isOwnProfile,
+        });
+        
         // Trigger leaderboard refresh after successful search
         setLeaderboardRefresh(prev => prev + 1);
       } else {
@@ -80,7 +134,7 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [claimedHandle, storedReferralCode]);
 
   return (
     <div className="min-h-screen bg-white dark:bg-(--ethmumbai-black)">
@@ -188,6 +242,14 @@ export default function Home() {
                 analysis={result.analysis}
                 rank={result.rank}
                 leaderboardPosition={result.leaderboardPosition}
+                referralCode={result.referralCode}
+                referralCount={result.referralCount}
+                referralBonus={result.referralBonus}
+                isOwnProfile={result.isOwnProfile ?? true}
+                onResetClaim={() => {
+                  localStorage.removeItem('ethmumbai_claimed_handle');
+                  setClaimedHandle(null);
+                }}
               />
             </div>
           </div>

@@ -26,5 +26,12 @@ model User {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  // Referral system fields
+  referralCode      String?  @unique // Made optional for migration, will backfill
+  referredBy        String?  // The referral code of who referred this user
+  referralCount     Int      @default(0)
+  referralBonus     Int      @default(0)
+
   @@index([ethMumbaiScore(sort: Desc)])
+  @@index([referralCount(sort: Desc)])
 }

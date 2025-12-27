@@ -1,6 +1,7 @@
 "use client";
 
 import { RankInfo, getNextRank, getTweetsToNextRank } from "@/app/lib/ranks";
+import { getReferralTier, getNextReferralTier, getReferralsToNextTier } from "@/app/lib/referrals";
 import Image from "next/image";
 import { useState } from "react";
 import ProfileCard from "./ProfileCard";
@@ -20,6 +21,12 @@ interface ScoreCardProps {
   };
   rank: RankInfo;
   leaderboardPosition: number;
+  // Referral props
+  referralCode?: string;
+  referralCount?: number;
+  referralBonus?: number;
+  isOwnProfile?: boolean;
+  onResetClaim?: () => void;
 }
 
 export default function ScoreCard({
@@ -27,10 +34,33 @@ export default function ScoreCard({
   analysis,
   rank,
   leaderboardPosition,
+  referralCode,
+  referralCount = 0,
+  referralBonus = 0,
+  isOwnProfile = false,
+  onResetClaim,
 }: ScoreCardProps) {
   const nextRank = getNextRank(user.score);
   const tweetsToNext = getTweetsToNextRank(user.score);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Referral tier info
+  const referralTier = getReferralTier(referralCount);
+  const nextReferralTier = getNextReferralTier(referralCount);
+  const referralsToNext = getReferralsToNextTier(referralCount);
+
+  // Build referral link - use env var for production, fallback to window.location
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://eth-mumbai-fan-score.vercel.app');
+  const referralLink = referralCode ? `${baseUrl}/?ref=${referralCode}` : '';
+
+  const copyReferralLink = async () => {
+    if (referralLink) {
+      await navigator.clipboard.writeText(referralLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border-3 border-(--ethmumbai-cyan)">
@@ -160,6 +190,82 @@ export default function ScoreCard({
             </p>
           </div>
         </div>
+
+        {/* Referral Section - Only shown for own profile */}
+        {isOwnProfile && referralCode && (
+          <div className="mt-6 p-4 bg-gradient-to-r from-(--ethmumbai-yellow)/20 to-(--ethmumbai-cyan)/20 border-2 border-(--ethmumbai-yellow) rounded-2xl">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl">{referralTier?.badge || "🔗"}</span>
+              <h3 className="text-sm font-bold text-(--ethmumbai-black) dark:text-white font-header">
+                {referralTier ? `${referralTier.title}` : "Invite Friends & Earn Points!"}
+              </h3>
+              {referralBonus > 0 && (
+                <span className="ml-auto text-xs font-bold text-(--ethmumbai-red) bg-white dark:bg-gray-700 px-2 py-1 rounded-full">
+                  +{referralBonus} bonus pts
+                </span>
+              )}
+            </div>
+
+            {/* Referral Link */}
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                value={referralLink}
+                readOnly
+                className="flex-1 px-3 py-2 text-xs bg-white dark:bg-gray-700 border-2 border-(--ethmumbai-cyan) rounded-xl font-mono text-gray-700 dark:text-gray-300 truncate"
+              />
+              <button
+                onClick={copyReferralLink}
+                className="px-4 py-2 bg-(--ethmumbai-cyan) hover:bg-(--ethmumbai-cyan)/80 text-white font-header text-xs rounded-xl flex items-center gap-1 transition-all hover:scale-105 active:scale-95"
+              >
+                {copied ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Referral Progress */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-600 dark:text-gray-400 font-body">
+                <span className="font-bold text-(--ethmumbai-black) dark:text-white">{referralCount}</span> referral{referralCount !== 1 ? 's' : ''}
+              </span>
+              {nextReferralTier && (
+                <span className="text-gray-600 dark:text-gray-400 font-body">
+                  <span className="font-bold text-(--ethmumbai-red)">{referralsToNext}</span> more for {nextReferralTier.badge} {nextReferralTier.title}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Not own profile notice */}
+        {!isOwnProfile && (
+          <div className="mt-4 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-body italic">
+              Viewing someone else&apos;s profile
+            </p>
+            {onResetClaim && (
+              <button
+                onClick={onResetClaim}
+                className="mt-2 text-xs text-(--ethmumbai-cyan) hover:underline font-body"
+              >
+                Not your account? Reset
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Share Modal */}

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { analyzeRealTweets } from "@/app/lib/twitter";
 import { getRankByScore } from "@/app/lib/ranks";
+import { calculateReferralBonus, isValidReferralCode } from "@/app/lib/referrals";
+import { createId } from '@paralleldrive/cuid2';
 import {
   userCache,
   requestDeduplicator,
@@ -17,7 +19,7 @@ const DB_FRESHNESS_TTL = 3600; // 1 hour - how old DB data can be before re-fetc
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { handle, forceRefresh = false } = body;
+    const { handle, forceRefresh = false, referralCode } = body;
 
     if (!handle) {
       return NextResponse.json(
@@ -57,6 +59,12 @@ export async function POST(request: NextRequest) {
         where: { ethMumbaiScore: { gt: cachedData.score } },
       });
       
+      // Fetch referral data from DB (cache doesn't store it)
+      const userReferralData = await prisma.user.findUnique({
+        where: { twitterHandle: cleanHandle },
+        select: { referralCode: true, referralCount: true, referralBonus: true },
+      });
+      
       return NextResponse.json({
         success: true,
         cached: true,
@@ -75,6 +83,9 @@ export async function POST(request: NextRequest) {
           },
           rank: rankInfo,
           leaderboardPosition: position + 1,
+          referralCode: userReferralData?.referralCode || null,
+          referralCount: userReferralData?.referralCount || 0,
+          referralBonus: userReferralData?.referralBonus || 0,
         },
       });
     }
@@ -127,6 +138,9 @@ export async function POST(request: NextRequest) {
             },
             rank: rankInfo,
             leaderboardPosition: position + 1,
+            referralCode: existingUser.referralCode,
+            referralCount: existingUser.referralCount,
+            referralBonus: existingUser.referralBonus,
           },
         });
       }
@@ -160,6 +174,9 @@ export async function POST(request: NextRequest) {
             },
             rank: rankInfo,
             leaderboardPosition: position + 1,
+            referralCode: existingUser.referralCode,
+            referralCount: existingUser.referralCount,
+            referralBonus: existingUser.referralBonus,
           },
         });
       }
@@ -195,6 +212,36 @@ export async function POST(request: NextRequest) {
     // Get rank based on score
     const rankInfo = getRankByScore(analysis.score);
 
+    // Check if this is a new user (for referral tracking)
+    const isNewUser = !existingUser;
+    
+    // Process referral if this is a new user with a valid referral code
+    let validatedReferralCode: string | null = null;
+    if (isNewUser && referralCode && isValidReferralCode(referralCode)) {
+      // Find the referrer by their referral code
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode },
+        select: { id: true, twitterHandle: true, referralCount: true },
+      });
+      
+      // Validate: referrer exists and is not self-referral
+      if (referrer && referrer.twitterHandle.toLowerCase() !== cleanHandle.toLowerCase()) {
+        validatedReferralCode = referralCode;
+        
+        // Credit the referrer with atomic increment
+        const newReferralCount = referrer.referralCount + 1;
+        await prisma.user.update({
+          where: { id: referrer.id },
+          data: {
+            referralCount: { increment: 1 },
+            referralBonus: calculateReferralBonus(newReferralCount),
+          },
+        });
+        
+        console.log(`[Referral] ${cleanHandle} referred by ${referrer.twitterHandle}. New count: ${newReferralCount}`);
+      }
+    }
+
     // Upsert user in database
     const user = await prisma.user.upsert({
       where: { twitterHandle: cleanHandle },
@@ -216,6 +263,8 @@ export async function POST(request: NextRequest) {
         hashtagCount: analysis.ethMumbaiHashtags,
         ethMumbaiScore: analysis.score,
         rank: rankInfo.name,
+        referralCode: createId(), // Generate unique referral code for new users
+        referredBy: validatedReferralCode, // Set only on creation
       },
     });
 
@@ -261,6 +310,9 @@ export async function POST(request: NextRequest) {
         },
         rank: rankInfo,
         leaderboardPosition: position + 1,
+        referralCode: user.referralCode,
+        referralCount: user.referralCount,
+        referralBonus: user.referralBonus,
       },
       leaderboardVersion: newVersion,
     });
